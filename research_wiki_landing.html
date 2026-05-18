@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>research-wiki — Hallucination-Free Academic Wiki for Claude Code</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#0d1117; --surface:#161b22; --surface2:#21262d; --border:#30363d;
+    --text:#e6edf3; --muted:#8b949e; --accent:#7c3aed; --accent-l:#a78bfa;
+    --accent-bg:#7c3aed18; --green:#3fb950; --green-bg:#3fb95018;
+    --blue:#58a6ff; --blue-bg:#58a6ff18; --yellow:#d29922; --yellow-bg:#d2992218;
+    --red:#f85149; --code-bg:#161b22; --radius:10px;
+  }
+  html { scroll-behavior:smooth; }
+  body {
+    font-family:'Apple SD Gothic Neo','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;
+    background:var(--bg); color:var(--text); line-height:1.65; font-size:16px;
+  }
+  html.ko body { word-break:keep-all; line-height:1.75; }
+  a { color:var(--accent-l); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+
+  /* ── LANGUAGE TOGGLE ── */
+  span.t-ko { display:none; }
+  html.ko span.t-ko { display:inline; }
+  html.ko span.t-en { display:none; }
+  .blk-ko { display:none; }
+  html.ko .blk-ko { display:block; }
+  html.ko .blk-en { display:none; }
+
+  /* ── NAV ── */
+  nav {
+    position:sticky; top:0; z-index:100;
+    background:rgba(13,17,23,.95); backdrop-filter:blur(16px);
+    border-bottom:1px solid var(--border);
+    padding:0 2rem; display:flex; align-items:center; justify-content:space-between;
+    height:60px;
+  }
+  .nav-logo { display:flex; align-items:center; gap:.6rem; font-weight:700; font-size:1rem; color:var(--text); }
+  .nav-logo span { color:var(--accent-l); }
+  .nav-links { display:flex; align-items:center; gap:.25rem; }
+  .nav-links a {
+    color:var(--muted); font-size:.875rem; padding:.4rem .75rem;
+    border-radius:6px; transition:color .15s,background .15s;
+  }
+  .nav-links a:hover { color:var(--text); background:var(--surface2); text-decoration:none; }
+  .nav-cta {
+    background:var(--accent); color:#fff !important;
+    font-weight:600; border-radius:6px; padding:.4rem .9rem !important;
+    transition:opacity .15s !important;
+  }
+  .nav-cta:hover { opacity:.85; }
+  .nav-right { display:flex; align-items:center; gap:.5rem; flex-shrink:0; }
+  .lang-switch { display:flex; gap:.2rem; }
+  .lang-btn {
+    background:none; border:1px solid var(--border); color:var(--muted);
+    padding:.25rem .55rem; border-radius:4px; font-size:.75rem; cursor:pointer;
+    transition:all .15s; font-family:inherit; line-height:1.4; white-space:nowrap;
+  }
+  .lang-btn:hover { border-color:var(--accent-l); color:var(--accent-l); }
+  .lang-btn.active { border-color:var(--accent); color:var(--accent-l); background:var(--accent-bg); }
+
+  /* ── SECTIONS ── */
+  section { padding:80px 0; }
+  .container { max-width:1100px; margin:0 auto; padding:0 2rem; }
+  .section-label {
+    font-size:.75rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:.12em; color:var(--accent-l); margin-bottom:.75rem;
+  }
+  h2 { font-size:2rem; font-weight:700; line-height:1.28; margin-bottom:1rem; color:var(--text); }
+  .subtitle { font-size:1.05rem; color:var(--muted); max-width:640px; }
+
+  /* ── HERO ── */
+  #hero {
+    padding:100px 0 80px;
+    background:radial-gradient(ellipse 80% 50% at 50% -10%,#7c3aed22 0%,transparent 70%);
+    border-bottom:1px solid var(--border); text-align:center;
+  }
+  .hero-badge {
+    display:inline-flex; align-items:center; gap:.4rem;
+    background:var(--accent-bg); border:1px solid #7c3aed44;
+    color:var(--accent-l); font-size:.8rem; font-weight:600;
+    padding:.3rem .8rem; border-radius:20px; margin-bottom:1.5rem;
+  }
+  #hero h1 {
+    font-size:clamp(1.9rem,5vw,3.25rem); font-weight:800; line-height:1.2;
+    margin-bottom:1.25rem;
+    background:linear-gradient(135deg,#e6edf3 0%,#a78bfa 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  }
+  #hero p.hero-desc { font-size:1.1rem; color:var(--muted); max-width:600px; margin:0 auto 2.5rem; }
+  .hero-ctas { display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; }
+  .btn-primary {
+    display:inline-flex; align-items:center; gap:.5rem;
+    background:var(--accent); color:#fff; font-size:.95rem; font-weight:600;
+    padding:.75rem 1.5rem; border-radius:8px; transition:opacity .15s; text-decoration:none;
+  }
+  .btn-primary:hover { opacity:.85; text-decoration:none; }
+  .btn-secondary {
+    display:inline-flex; align-items:center; gap:.5rem;
+    background:var(--surface2); color:var(--text); border:1px solid var(--border);
+    font-size:.95rem; font-weight:600; padding:.75rem 1.5rem; border-radius:8px;
+    transition:border-color .15s; text-decoration:none;
+  }
+  .btn-secondary:hover { border-color:var(--accent-l); text-decoration:none; }
+  .hero-stats {
+    display:flex; gap:3rem; justify-content:center; flex-wrap:wrap;
+    margin-top:4rem; padding-top:3rem; border-top:1px solid var(--border);
+  }
+  .hero-stat .num { font-size:2rem; font-weight:700; color:var(--accent-l); display:block; }
+  .hero-stat .lbl { font-size:.85rem; color:var(--muted); }
+
+  /* ── PROBLEM ── */
+  #problem { background:var(--surface); border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+  .problem-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.5rem; margin-top:3rem; }
+  .problem-card { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:1.5rem; }
+  .problem-card .icon { font-size:1.5rem; margin-bottom:.75rem; }
+  .problem-card h3 { font-size:1rem; font-weight:600; margin-bottom:.5rem; }
+  .problem-card p { font-size:.875rem; color:var(--muted); line-height:1.65; }
+  .problem-card.solved { border-color:#3fb95044; }
+  .problem-card.solved h3 { color:var(--green); }
+
+  /* ── HOW IT WORKS ── */
+  .tier-flow {
+    display:flex; align-items:stretch; gap:0;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); overflow:hidden; margin-top:2.5rem;
+  }
+  .tier { flex:1; padding:1.75rem; border-right:1px solid var(--border); }
+  .tier:last-child { border-right:none; }
+  .tier-num {
+    display:inline-block; width:24px; height:24px; border-radius:50%;
+    background:var(--accent); color:#fff;
+    font-size:.75rem; font-weight:700; text-align:center; line-height:24px; margin-bottom:.75rem;
+  }
+  .tier h3 { font-size:.95rem; font-weight:600; margin-bottom:.3rem; }
+  .tier .path { font-family:monospace; font-size:.75rem; color:var(--accent-l); margin-bottom:.5rem; }
+  .tier p { font-size:.8rem; color:var(--muted); line-height:1.6; }
+  .tier-arrow { color:var(--muted); font-size:1.25rem; flex-shrink:0; padding:0 .5rem; display:flex; align-items:center; }
+
+  /* ── VERIFICATION ── */
+  .verify-grid {
+    display:grid; grid-template-columns:repeat(2,1fr);
+    gap:1px; background:var(--border);
+    border:1px solid var(--border); border-radius:var(--radius);
+    overflow:hidden; margin-top:2.5rem;
+  }
+  .verify-cell { background:var(--surface); padding:1.5rem; transition:background .15s; }
+  .verify-cell:hover { background:var(--surface2); }
+  .verify-cell .vi { font-size:1.5rem; margin-bottom:.6rem; }
+  .verify-cell h3 { font-size:.95rem; font-weight:600; margin-bottom:.35rem; }
+  .verify-cell p { font-size:.8rem; color:var(--muted); line-height:1.6; }
+  .verify-arrow { display:flex; justify-content:center; padding:1.25rem 0; }
+  .verify-chain {
+    display:inline-flex; align-items:center; gap:.4rem;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:8px; padding:.5rem 1rem; font-size:.85rem;
+    font-family:monospace; color:var(--accent-l);
+  }
+  .verdict-row { display:flex; gap:.6rem; flex-wrap:wrap; margin-top:1.25rem; }
+  .verdict {
+    display:inline-flex; align-items:center; gap:.3rem;
+    padding:.25rem .65rem; border-radius:20px; font-size:.75rem; font-weight:600;
+  }
+  .verdict.pass { background:var(--green-bg); color:var(--green); }
+  .verdict.warn { background:var(--yellow-bg); color:var(--yellow); }
+  .verdict.drift { background:var(--blue-bg); color:var(--blue); }
+  .verdict.fail { background:#f8514918; color:var(--red); }
+
+  /* ── INSTALL ── */
+  #install { background:var(--surface); border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+  .steps { margin-top:2.5rem; display:flex; flex-direction:column; gap:2rem; }
+  .step { display:flex; gap:1.5rem; }
+  .step-num {
+    flex-shrink:0; width:32px; height:32px; border-radius:50%;
+    background:var(--accent); color:#fff;
+    font-size:.85rem; font-weight:700; text-align:center; line-height:32px;
+  }
+  .step-body { flex:1; }
+  .step-body h3 { font-size:1rem; font-weight:600; margin-bottom:.6rem; }
+  .step-body p { font-size:.875rem; color:var(--muted); margin-bottom:.75rem; }
+  .code-block { background:var(--code-bg); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  .code-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:.5rem 1rem; background:var(--surface2);
+    border-bottom:1px solid var(--border); font-size:.75rem; color:var(--muted);
+  }
+  .copy-btn {
+    background:none; border:1px solid var(--border); color:var(--muted);
+    padding:.2rem .5rem; border-radius:4px; font-size:.7rem; cursor:pointer; transition:all .15s;
+  }
+  .copy-btn:hover { border-color:var(--accent-l); color:var(--accent-l); }
+  pre {
+    padding:1rem 1.25rem; overflow-x:auto;
+    font-family:'SFMono-Regular','Consolas','Liberation Mono',monospace;
+    font-size:.85rem; line-height:1.6; color:#c9d1d9;
+  }
+  .hl-comment { color:#6e7681; }
+  .hl-str { color:#a5d6ff; }
+  .hl-key { color:var(--green); }
+
+  /* ── COMMANDS ── */
+  .cmd-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:1rem; margin-top:2.5rem; }
+  .cmd-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.25rem; transition:border-color .2s; }
+  .cmd-card:hover { border-color:var(--accent); }
+  .cmd-card .cmd-tag {
+    display:inline-block; background:var(--accent-bg); border:1px solid #7c3aed44;
+    color:var(--accent-l); font-size:.7rem; font-weight:700;
+    padding:.15rem .5rem; border-radius:4px; margin-bottom:.75rem; font-family:monospace;
+  }
+  .cmd-card h3 { font-size:.9rem; font-weight:600; margin-bottom:.35rem; }
+  .cmd-card p { font-size:.8rem; color:var(--muted); line-height:1.55; }
+  .cmd-card code {
+    display:block; margin-top:.75rem; font-family:monospace; font-size:.8rem; color:var(--accent-l);
+    background:var(--bg); border:1px solid var(--border); padding:.4rem .75rem; border-radius:6px;
+  }
+
+  /* ── USE CASES ── */
+  .usecase-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:1.5rem; margin-top:2.5rem; }
+  .usecase-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); padding:1.5rem; transition:transform .2s,border-color .2s;
+  }
+  .usecase-card:hover { transform:translateY(-2px); border-color:var(--accent); }
+  .uc-icon { font-size:2rem; margin-bottom:1rem; }
+  .usecase-card h3 { font-size:1rem; font-weight:600; margin-bottom:.5rem; }
+  .usecase-card p { font-size:.875rem; color:var(--muted); line-height:1.65; }
+  .uc-tags { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:1rem; }
+  .uc-tag {
+    font-size:.7rem; font-weight:600; padding:.15rem .5rem; border-radius:4px;
+    background:var(--surface2); color:var(--muted); border:1px solid var(--border);
+  }
+
+  /* ── PRINCIPLES ── */
+  #principles { background:var(--surface); border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+  .rules {
+    display:flex; flex-direction:column; gap:1px; background:var(--border);
+    border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-top:2.5rem;
+  }
+  .rule { background:var(--surface); padding:1.25rem 1.5rem; display:flex; align-items:flex-start; gap:1rem; transition:background .15s; }
+  .rule:hover { background:var(--surface2); }
+  .rule-num {
+    flex-shrink:0; width:28px; height:28px; border-radius:6px;
+    background:var(--accent); color:#fff; font-size:.8rem; font-weight:700; text-align:center; line-height:28px;
+  }
+  .rule h3 { font-size:.9rem; font-weight:600; margin-bottom:.2rem; }
+  .rule p { font-size:.825rem; color:var(--muted); line-height:1.6; }
+
+  /* ── FOOTER ── */
+  footer { border-top:1px solid var(--border); padding:2.5rem 0; text-align:center; color:var(--muted); font-size:.85rem; }
+  footer a { color:var(--muted); }
+  footer a:hover { color:var(--accent-l); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width:768px) {
+    nav .nav-links { display:none; }
+    .nav-right { gap:.35rem; }
+    .tier-flow { flex-direction:column; }
+    .tier { border-right:none; border-bottom:1px solid var(--border); }
+    .tier:last-child { border-bottom:none; }
+    .tier-arrow { display:none; }
+    .verify-grid { grid-template-columns:1fr; }
+    h2 { font-size:1.5rem; }
+    .hero-stats { gap:2rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+  <div class="nav-logo">📚 <span>research-wiki</span></div>
+  <div class="nav-links">
+    <a href="#problem"><span class="t-en">Why</span><span class="t-ko">왜 필요한가</span></a>
+    <a href="#how-it-works"><span class="t-en">How it works</span><span class="t-ko">작동 원리</span></a>
+    <a href="#install"><span class="t-en">Install</span><span class="t-ko">설치</span></a>
+    <a href="#commands"><span class="t-en">Commands</span><span class="t-ko">명령어</span></a>
+    <a href="#use-cases"><span class="t-en">Use cases</span><span class="t-ko">활용 사례</span></a>
+  </div>
+  <div class="nav-right">
+    <div class="lang-switch">
+      <button class="lang-btn active" data-lang="en" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" data-lang="ko" onclick="setLang('ko')">한국어</button>
+    </div>
+    <a href="https://github.com/manturster-art/research-wiki" class="nav-cta">GitHub →</a>
+  </div>
+</nav>
+
+<!-- ── HERO ── -->
+<section id="hero">
+  <div class="container">
+    <div class="hero-badge">
+      <span class="t-en">🔬 Claude Code Skill · MIT License</span>
+      <span class="t-ko">🔬 Claude Code 스킬 · MIT 라이선스</span>
+    </div>
+    <h1>
+      <span class="t-en">Your research wiki,<br>verified to the source.</span>
+      <span class="t-ko">내 논문이 인용하는 모든 것,<br>원문까지 검증된 위키로.</span>
+    </h1>
+    <p class="hero-desc blk-en">A Claude Code skill that turns PDFs into a cross-referenced, hallucination-checked knowledge base — with every claim traceable to a real paper.</p>
+    <p class="hero-desc blk-ko">PDF를 집어넣으면 상호 참조·할루시네이션 검증이 완료된 지식 베이스가 만들어집니다. 모든 주장은 실제 보유한 논문까지 추적 가능합니다.</p>
+    <div class="hero-ctas">
+      <a href="#install" class="btn-primary">⚡ <span class="t-en">Get started</span><span class="t-ko">시작하기</span></a>
+      <a href="https://github.com/manturster-art/research-wiki" class="btn-secondary">⭐ <span class="t-en">View on GitHub</span><span class="t-ko">GitHub 보기</span></a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <span class="num"><span class="t-en">3-tier</span><span class="t-ko">3계층</span></span>
+        <span class="lbl"><span class="t-en">PDF → source → wiki</span><span class="t-ko">PDF → 요약 → 위키</span></span>
+      </div>
+      <div class="hero-stat">
+        <span class="num">4-way</span>
+        <span class="lbl"><span class="t-en">Verification matrix</span><span class="t-ko">교차 검증 매트릭스</span></span>
+      </div>
+      <div class="hero-stat">
+        <span class="num"><span class="t-en">2 APIs</span><span class="t-ko">2개 API</span></span>
+        <span class="lbl">OpenAlex + Crossref</span>
+      </div>
+      <div class="hero-stat">
+        <span class="num">0 halluc.</span>
+        <span class="lbl"><span class="t-en">D16 principle enforced</span><span class="t-ko">D16 원칙 강제 적용</span></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── PROBLEM ── -->
+<section id="problem">
+  <div class="container">
+    <div class="section-label"><span class="t-en">The problem</span><span class="t-ko">문제 인식</span></div>
+    <h2><span class="t-en">LLMs cite papers that don't exist.</span><span class="t-ko">LLM은 존재하지 않는 논문을 인용합니다.</span></h2>
+    <p class="subtitle blk-en">Ask any LLM about your research area and it will confidently cite authors, years, and journals — most of which are fabricated.</p>
+    <p class="subtitle blk-ko">연구 분야를 LLM에 질문하면 저자, 연도, 저널명을 자신 있게 제시합니다. 그 중 상당수는 만들어낸 것입니다.</p>
+    <div class="problem-grid">
+      <div class="problem-card">
+        <div class="icon">🌀</div>
+        <h3><span class="t-en">Hallucinated citations</span><span class="t-ko">환각 인용 (Hallucinated citation)</span></h3>
+        <p><span class="t-en">GPT-4 and similar models invent plausible-sounding references. In academic writing this is catastrophic — you can't cite a paper that doesn't exist.</span><span class="t-ko">GPT-4 같은 모델은 그럴듯한 참고문헌을 지어냅니다. 학술 글쓰기에서 이는 치명적입니다 — 존재하지 않는 논문을 인용할 수는 없으니까요.</span></p>
+      </div>
+      <div class="problem-card">
+        <div class="icon">🔍</div>
+        <h3><span class="t-en">Untraceable claims</span><span class="t-ko">추적 불가능한 주장</span></h3>
+        <p><span class="t-en">Even when citations are real, it's hard to know which exact passage supports which claim. Every answer should be traceable to a specific paper and page.</span><span class="t-ko">인용이 실제라도 어떤 구절이 어떤 주장을 뒷받침하는지 알기 어렵습니다. 모든 답변은 특정 논문의 특정 페이지까지 추적 가능해야 합니다.</span></p>
+      </div>
+      <div class="problem-card">
+        <div class="icon">📂</div>
+        <h3><span class="t-en">Context overload</span><span class="t-ko">컨텍스트 한계</span></h3>
+        <p><span class="t-en">As your literature grows, feeding 50+ PDFs into a single prompt becomes impractical. You need a structured, searchable store that grows with your research.</span><span class="t-ko">문헌이 늘어날수록 PDF 50편을 한 번에 넣는 것은 비현실적입니다. 연구와 함께 성장하는 구조화된 지식 저장소가 필요합니다.</span></p>
+      </div>
+      <div class="problem-card solved">
+        <div class="icon">✅</div>
+        <h3><span class="t-en">research-wiki solves this</span><span class="t-ko">research-wiki가 해결합니다</span></h3>
+        <p><span class="t-en">Every wiki page is extracted from a real PDF you own. Every answer cites only papers in your wiki. Every entry is cross-verified against two independent metadata databases.</span><span class="t-ko">모든 위키 페이지는 실제 보유한 PDF에서 추출됩니다. 모든 답변은 위키에 있는 논문만 인용합니다. 모든 항목은 두 개의 독립 메타데이터 DB로 교차 검증됩니다.</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── HOW IT WORKS ── -->
+<section id="how-it-works">
+  <div class="container">
+    <div class="section-label"><span class="t-en">Architecture</span><span class="t-ko">구조</span></div>
+    <h2><span class="t-en">Three layers. One ground truth.</span><span class="t-ko">3개 계층, 하나의 원본.</span></h2>
+    <p class="subtitle blk-en">Every piece of knowledge flows from an immutable PDF through structured summaries to a cross-linked wiki page.</p>
+    <p class="subtitle blk-ko">모든 지식은 불변 PDF에서 구조화된 요약을 거쳐 상호 링크된 위키 페이지로 흐릅니다.</p>
+
+    <div class="tier-flow">
+      <div class="tier">
+        <div class="tier-num">1</div>
+        <h3><span class="t-en">Original PDF</span><span class="t-ko">원본 PDF</span></h3>
+        <div class="path">papers/{stem}.pdf</div>
+        <p><span class="t-en">Immutable source of truth. Copied in once, never modified. The final arbiter of any disputed claim.</span><span class="t-ko">불변의 원본. 한 번 복사 후 절대 수정하지 않습니다. 모든 논쟁에서 최종 판정자 역할을 합니다.</span></p>
+      </div>
+      <div class="tier-arrow">→</div>
+      <div class="tier">
+        <div class="tier-num">2</div>
+        <h3><span class="t-en">Source Summary</span><span class="t-ko">소스 요약</span></h3>
+        <div class="path">sources/{stem}.md</div>
+        <p><span class="t-en">Detailed extraction: methodology, results, limitations, glossary — all in English, structured by section.</span><span class="t-ko">상세 추출: 방법론, 결과, 한계, 용어 정리 — 섹션별로 구조화된 영문 요약.</span></p>
+      </div>
+      <div class="tier-arrow">→</div>
+      <div class="tier">
+        <div class="tier-num">3</div>
+        <h3><span class="t-en">Wiki Page</span><span class="t-ko">위키 페이지</span></h3>
+        <div class="path">wiki/{category}/{stem}.md</div>
+        <p><span class="t-en">Obsidian-ready page with <code>[[wikilinks]]</code>, YAML metadata, and a bilingual summary. Cross-references other papers by link.</span><span class="t-ko">Obsidian에서 바로 열 수 있는 최종 페이지. <code>[[wikilink]]</code>로 다른 논문과 연결. YAML 메타데이터 + 한국어 요약 필수 포함.</span></p>
+      </div>
+    </div>
+
+    <div style="margin-top:3.5rem;">
+      <div class="section-label"><span class="t-en">Verification</span><span class="t-ko">검증</span></div>
+      <h2><span class="t-en">Four sources. Zero guessing.</span><span class="t-ko">4개 출처. 추측 제로.</span></h2>
+      <p class="subtitle blk-en">Every entry is cross-checked against two independent academic databases and the original PDF — automatically.</p>
+      <p class="subtitle blk-ko">모든 항목은 두 개의 독립 학술 DB와 원본 PDF를 대조해 자동으로 검증됩니다.</p>
+      <div class="verify-grid">
+        <div class="verify-cell">
+          <div class="vi">📋</div>
+          <h3>Wiki YAML</h3>
+          <p><span class="t-en">Frontmatter extracted directly from the PDF: title, authors, year, DOI, category, dissertation mapping.</span><span class="t-ko">PDF에서 직접 추출한 frontmatter: 제목, 저자, 연도, DOI, 카테고리, 논문 매핑.</span></p>
+        </div>
+        <div class="verify-cell">
+          <div class="vi">🔭</div>
+          <h3>OpenAlex</h3>
+          <p><span class="t-en">250M+ works database. Confirms DOI, author list, cited-by count, Open Access PDF URL. 30-day local cache.</span><span class="t-ko">2억 5천만 건 이상의 학술 DB. DOI, 저자 목록, 피인용수, OA PDF URL 확인. 30일 로컬 캐시.</span></p>
+        </div>
+        <div class="verify-cell">
+          <div class="vi">🔗</div>
+          <h3>Crossref</h3>
+          <p><span class="t-en">Independent second database. When OpenAlex and Crossref agree, trust is high. When they disagree, the PDF decides.</span><span class="t-ko">OpenAlex와 독립적인 두 번째 정본. 두 DB가 일치하면 신뢰도 상승. 불일치 시 PDF가 최종 판정.</span></p>
+        </div>
+        <div class="verify-cell">
+          <div class="vi">📄</div>
+          <h3><span class="t-en">PDF Page 1</span><span class="t-ko">PDF 1페이지</span></h3>
+          <p><span class="t-en">The original paper's title page. Final arbiter for any conflict. Extracted via <code>pypdf</code> — no external calls.</span><span class="t-ko">원본 논문 표지. 모든 불일치의 최종 판정자. <code>pypdf</code>로 추출 — 외부 API 호출 없음.</span></p>
+        </div>
+      </div>
+      <div class="verify-arrow">
+        <div class="verify-chain">wiki YAML ↔ OpenAlex ↔ Crossref ↔ PDF</div>
+      </div>
+      <div class="verdict-row">
+        <span class="verdict pass">✅ PASS — <span class="t-en">all four agree</span><span class="t-ko">4개 모두 일치</span></span>
+        <span class="verdict warn">⚠️ WARN — <span class="t-en">API incomplete, wiki correct</span><span class="t-ko">API 데이터 불완전, wiki 정확</span></span>
+        <span class="verdict drift">🔵 DRIFT — <span class="t-en">wiki metadata needs update</span><span class="t-ko">wiki 메타데이터 정정 권고</span></span>
+        <span class="verdict fail">🚨 CRITICAL — <span class="t-en">PDF is a different paper</span><span class="t-ko">PDF가 전혀 다른 논문</span></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── INSTALL ── -->
+<section id="install">
+  <div class="container">
+    <div class="section-label"><span class="t-en">Installation</span><span class="t-ko">설치 방법</span></div>
+    <h2><span class="t-en">Up and running in 5 minutes.</span><span class="t-ko">5분이면 시작할 수 있습니다.</span></h2>
+    <p class="subtitle blk-en">No build tools. No package manager. Pure Node.js and Python — both already on your machine.</p>
+    <p class="subtitle blk-ko">빌드 도구 불필요. 패키지 매니저 불필요. Node.js와 Python만 있으면 됩니다.</p>
+
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h3><span class="t-en">Clone the skill into your Claude Code skills folder</span><span class="t-ko">Claude Code 스킬 폴더에 클론</span></h3>
+          <div class="code-block">
+            <div class="code-header">
+              <span>bash</span>
+              <button class="copy-btn" onclick="copy(this)"><span class="t-en">Copy</span><span class="t-ko">복사</span></button>
+            </div>
+            <pre><span class="hl-comment"># Mac / Linux</span>
+git clone https://github.com/manturster-art/research-wiki \
+  ~/.claude/skills/research-wiki
+
+<span class="hl-comment"># Windows (PowerShell)</span>
+git clone https://github.com/manturster-art/research-wiki `
+  "$env:USERPROFILE\.claude\skills\research-wiki"</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h3><span class="t-en">Create your wiki folder</span><span class="t-ko">위키 폴더 만들기</span></h3>
+          <p class="blk-en">Copy the scaffold from the skill, or start from scratch following the structure below.</p>
+          <p class="blk-ko">스킬의 scaffold를 복사하거나, 아래 구조를 참고해 직접 만드세요.</p>
+          <div class="code-block">
+            <div class="code-header">
+              <span>bash</span>
+              <button class="copy-btn" onclick="copy(this)"><span class="t-en">Copy</span><span class="t-ko">복사</span></button>
+            </div>
+            <pre>cp -r ~/.claude/skills/research-wiki/scaffold ~/my-research-wiki
+cd ~/my-research-wiki</pre>
+          </div>
+          <p style="margin-top:.75rem;" class="blk-en">The scaffold gives you:</p>
+          <p style="margin-top:.75rem;" class="blk-ko">scaffold가 만들어주는 구조:</p>
+          <div class="code-block" style="margin-top:.5rem;">
+            <div class="code-header"><span>tree</span></div>
+            <pre>my-research-wiki/
+├── <span class="hl-key">papers/</span>          <span class="hl-comment"><span class="t-en"># drop your PDFs here</span><span class="t-ko"># PDF를 여기에 넣으세요</span></span>
+├── <span class="hl-key">sources/</span>         <span class="hl-comment"><span class="t-en"># auto-generated summaries</span><span class="t-ko"># 자동 생성되는 요약</span></span>
+├── <span class="hl-key">wiki/</span>            <span class="hl-comment"><span class="t-en"># final wiki pages (Obsidian vault)</span><span class="t-ko"># 최종 위키 페이지 (Obsidian vault)</span></span>
+│   └── {category}/
+├── <span class="hl-key">_workspace/</span>      <span class="hl-comment"><span class="t-en"># scripts + cache + logs</span><span class="t-ko"># 스크립트 + 캐시 + 로그</span></span>
+├── CLAUDE.md        <span class="hl-comment"><span class="t-en"># instructions for Claude</span><span class="t-ko"># Claude에 대한 지시사항</span></span>
+└── index.md         <span class="hl-comment"><span class="t-en"># page catalog</span><span class="t-ko"># 페이지 목록</span></span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h3><span class="t-en">Get a free OpenAlex API key</span><span class="t-ko">무료 OpenAlex API 키 발급</span></h3>
+          <p class="blk-en">Takes 30 seconds at <a href="https://openalex.org/settings/api">openalex.org/settings/api</a>. Then add it to your workspace:</p>
+          <p class="blk-ko"><a href="https://openalex.org/settings/api">openalex.org/settings/api</a>에서 30초면 됩니다. 발급 후 workspace에 추가:</p>
+          <div class="code-block">
+            <div class="code-header">
+              <span>_workspace/.env</span>
+              <button class="copy-btn" onclick="copy(this)"><span class="t-en">Copy</span><span class="t-ko">복사</span></button>
+            </div>
+            <pre>OPENALEX_KEY=<span class="hl-str"><span class="t-en">your_key_here</span><span class="t-ko">발급받은_키</span></span>
+OPENALEX_MAILTO=<span class="hl-str">you@example.com</span>
+CROSSREF_MAILTO=<span class="hl-str">you@example.com</span></pre>
+          </div>
+          <p style="margin-top:.6rem;font-size:.8rem;color:var(--muted);">⚠️ <code>.env</code> <span class="t-en">is gitignored by default — your key is never committed.</span><span class="t-ko">는 기본적으로 .gitignore 처리됩니다 — 키가 커밋에 포함되지 않습니다.</span></p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h3><span class="t-en">Add your first paper and ask Claude to process it</span><span class="t-ko">첫 번째 논문 추가 후 Claude에 요청</span></h3>
+          <div class="code-block blk-en">
+            <div class="code-header">
+              <span>bash</span>
+              <button class="copy-btn" onclick="copy(this)"><span class="t-en">Copy</span><span class="t-ko">복사</span></button>
+            </div>
+            <pre>cp ~/Downloads/doe-2024-my-paper.pdf papers/
+
+<span class="hl-comment"># Then in Claude Code:</span></pre>
+          </div>
+          <div class="code-block blk-ko">
+            <div class="code-header">
+              <span>bash</span>
+              <button class="copy-btn" onclick="copy(this)"><span class="t-en">Copy</span><span class="t-ko">복사</span></button>
+            </div>
+            <pre>cp ~/Downloads/홍길동-2024-논문제목.pdf papers/</pre>
+          </div>
+          <div class="code-block" style="margin-top:.5rem;">
+            <div class="code-header"><span><span class="t-en">Claude Code prompt</span><span class="t-ko">Claude Code 프롬프트</span></span></div>
+            <pre><span class="t-en">papers/doe-2024-my-paper.pdf를 읽고 sources/와 wiki/에 등재해줘.</span><span class="t-ko">papers/홍길동-2024-논문제목.pdf를 읽고 sources/와 wiki/에 등재해줘.</span></pre>
+          </div>
+          <p style="margin-top:.6rem;font-size:.8rem;color:var(--muted);"><span class="t-en">Claude reads the PDF, creates a source summary, writes the wiki page, and updates <code>index.md</code>.</span><span class="t-ko">Claude가 PDF를 읽고, 소스 요약을 만들고, 위키 페이지를 작성하고, <code>index.md</code>를 업데이트합니다.</span></p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h3><span class="t-en">Verify the entry against external databases</span><span class="t-ko">외부 DB로 메타데이터 검증</span></h3>
+          <div class="code-block">
+            <div class="code-header">
+              <span>bash</span>
+              <button class="copy-btn" onclick="copy(this)"><span class="t-en">Copy</span><span class="t-ko">복사</span></button>
+            </div>
+            <pre><span class="hl-comment"><span class="t-en"># Verify all wiki entries</span><span class="t-ko"># 전체 위키 항목 일괄 검증</span></span>
+node _workspace/enrich_wiki.js
+
+<span class="hl-comment"><span class="t-en"># Cross-check a single DOI against both databases</span><span class="t-ko"># 단일 DOI를 두 DB로 교차 검증</span></span>
+node _workspace/crossref_helper.js crosscheck <span class="hl-str">10.1017/dap.2023.28</span>
+
+<span class="hl-comment"><span class="t-en"># Generate interactive dashboard</span><span class="t-ko"># 인터랙티브 대시보드 생성</span></span>
+node _workspace/generate_dashboard.js</pre>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── COMMANDS ── -->
+<section id="commands">
+  <div class="container">
+    <div class="section-label"><span class="t-en">Commands</span><span class="t-ko">명령어 목록</span></div>
+    <h2><span class="t-en">Everything you need, one command away.</span><span class="t-ko">필요한 모든 것, 명령어 하나로.</span></h2>
+    <p class="subtitle blk-en">All scripts live in <code>_workspace/</code>. No npm install required.</p>
+    <p class="subtitle blk-ko">모든 스크립트는 <code>_workspace/</code>에 있습니다. npm install 불필요.</p>
+    <div class="cmd-grid">
+
+      <div class="cmd-card">
+        <div class="cmd-tag">enrich_wiki.js</div>
+        <h3><span class="t-en">Full verification run</span><span class="t-ko">전수 검증 실행</span></h3>
+        <p><span class="t-en">Verifies all wiki entries against OpenAlex. Detects metadata drift, discovers new DOIs, reports downloadable OA PDFs.</span><span class="t-ko">전체 위키 항목을 OpenAlex에 대조합니다. 메타데이터 drift 감지, 누락 DOI 발견, 다운로드 가능한 OA PDF 보고.</span></p>
+        <code>node _workspace/enrich_wiki.js</code>
+      </div>
+
+      <div class="cmd-card">
+        <div class="cmd-tag">crossref_helper.js</div>
+        <h3><span class="t-en">Independent cross-check</span><span class="t-ko">독립 교차 검증</span></h3>
+        <p><span class="t-en">Query Crossref as a second ground truth. <code>crosscheck</code> mode calls both OpenAlex and Crossref simultaneously and compares results.</span><span class="t-ko">Crossref를 두 번째 정본으로 조회합니다. <code>crosscheck</code> 모드는 두 DB를 동시에 호출해 결과를 비교합니다.</span></p>
+        <code>node _workspace/crossref_helper.js crosscheck &lt;DOI&gt;</code>
+      </div>
+
+      <div class="cmd-card">
+        <div class="cmd-tag">generate_dashboard.js</div>
+        <h3><span class="t-en">Interactive dashboard</span><span class="t-ko">인터랙티브 대시보드</span></h3>
+        <p><span class="t-en">Generates a self-contained HTML file with D3 force graph, verification table, and architecture explainer. Open directly in any browser.</span><span class="t-ko">D3 포스 그래프·검증 테이블·구조 설명이 담긴 단일 HTML 파일을 생성합니다. 브라우저에서 바로 열어보세요.</span></p>
+        <code>node _workspace/generate_dashboard.js</code>
+      </div>
+
+      <div class="cmd-card">
+        <div class="cmd-tag">graph_insights.js</div>
+        <h3><span class="t-en">Graph health check</span><span class="t-ko">그래프 구조 분석</span></h3>
+        <p><span class="t-en">Analyzes <code>[[wikilink]]</code> structure. Reports orphans (degree 0), bridges, disconnected clusters, and hub papers.</span><span class="t-ko"><code>[[wikilink]]</code> 구조를 분석합니다. 고립 노드, 브리지, 분리 클러스터, 허브 논문을 리포트합니다.</span></p>
+        <code>node _workspace/graph_insights.js</code>
+      </div>
+
+      <div class="cmd-card">
+        <div class="cmd-tag">find_missing_pdfs.js</div>
+        <h3><span class="t-en">Find open-access PDFs</span><span class="t-ko">오픈 액세스 PDF 탐색</span></h3>
+        <p><span class="t-en">Looks up missing papers in OpenAlex and reports Open Access PDF URLs you can download automatically.</span><span class="t-ko">미보유 논문을 OpenAlex에서 조회해 다운로드 가능한 OA PDF URL을 보고합니다.</span></p>
+        <code>node _workspace/find_missing_pdfs.js</code>
+      </div>
+
+      <div class="cmd-card">
+        <div class="cmd-tag">discover_backward.js</div>
+        <h3><span class="t-en">Backward citation discovery</span><span class="t-ko">역방향 인용 탐색</span></h3>
+        <p><span class="t-en">Given a seed paper, finds the papers it cites. Surfaces candidate references you may have missed in your literature review.</span><span class="t-ko">시드 논문이 인용하는 논문들을 찾습니다. 문헌 검토에서 놓쳤을 수 있는 후보 참고문헌을 발굴합니다.</span></p>
+        <code>node _workspace/discover_backward.js &lt;DOI&gt;</code>
+      </div>
+
+      <div class="cmd-card">
+        <div class="cmd-tag">wiki-verifier agent</div>
+        <h3><span class="t-en">4-way verification agent</span><span class="t-ko">4-way 검증 에이전트</span></h3>
+        <p><span class="t-en">A project-local Claude Code agent that cross-checks wiki YAML, OpenAlex, Crossref, and PDF page 1. Writes only to <code>verification_log.md</code> — never auto-edits wiki files.</span><span class="t-ko">Wiki YAML · OpenAlex · Crossref · PDF 1페이지를 교차 검증하는 로컬 에이전트. <code>verification_log.md</code>에만 기록하고 위키 파일은 절대 자동 수정하지 않습니다.</span></p>
+        <code>→ .claude/agents/wiki-verifier.md</code>
+      </div>
+
+      <div class="cmd-card">
+        <div class="cmd-tag">openalex_helper.js</div>
+        <h3><span class="t-en">Single-paper lookup</span><span class="t-ko">단일 논문 조회</span></h3>
+        <p><span class="t-en">Verify a DOI or title against OpenAlex directly. Returns W-ID, cited-by count, OA URL, and author list.</span><span class="t-ko">DOI 또는 제목으로 OpenAlex에 직접 검증합니다. W-ID, 피인용수, OA URL, 저자 목록을 반환합니다.</span></p>
+        <code>node _workspace/openalex_helper.js doi &lt;DOI&gt;</code>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── USE CASES ── -->
+<section id="use-cases">
+  <div class="container">
+    <div class="section-label"><span class="t-en">Use cases</span><span class="t-ko">활용 사례</span></div>
+    <h2><span class="t-en">Built for serious research.</span><span class="t-ko">진지한 연구를 위해 만들었습니다.</span></h2>
+    <p class="subtitle blk-en">Any field where you read papers, build arguments, and need your AI assistant to stay honest.</p>
+    <p class="subtitle blk-ko">논문을 읽고, 주장을 구성하고, AI 어시스턴트가 정직하게 답변하길 원하는 모든 분야에 적합합니다.</p>
+    <div class="usecase-grid">
+
+      <div class="usecase-card">
+        <div class="uc-icon">🎓</div>
+        <h3><span class="t-en">PhD dissertation research</span><span class="t-ko">박사 논문 연구</span></h3>
+        <p><span class="t-en">Track 50+ references across multiple dissertation papers. Map which sources support which arguments. Never lose a citation trail again.</span><span class="t-ko">논문 시리즈에 걸쳐 50편 이상의 참고문헌을 추적합니다. 어떤 출처가 어떤 주장을 뒷받침하는지 매핑하고, 인용 경로를 잃어버리지 않습니다.</span></p>
+        <div class="uc-tags">
+          <span class="uc-tag"><span class="t-en">literature review</span><span class="t-ko">문헌 검토</span></span>
+          <span class="uc-tag"><span class="t-en">citation management</span><span class="t-ko">인용 관리</span></span>
+          <span class="uc-tag"><span class="t-en">argument mapping</span><span class="t-ko">논거 매핑</span></span>
+        </div>
+      </div>
+
+      <div class="usecase-card">
+        <div class="uc-icon">🔬</div>
+        <h3><span class="t-en">Systematic literature review</span><span class="t-ko">체계적 문헌 고찰</span></h3>
+        <p><span class="t-en">Graph analysis reveals which papers are bridges between sub-fields. Discover gaps: topics with no papers are literal white spaces on your graph.</span><span class="t-ko">그래프 분석으로 세부 분야 간 브리지 논문을 찾아냅니다. 공백을 발견하세요 — 논문이 없는 주제는 그래프의 빈 공간으로 나타납니다.</span></p>
+        <div class="uc-tags">
+          <span class="uc-tag"><span class="t-en">gap analysis</span><span class="t-ko">연구 공백 분석</span></span>
+          <span class="uc-tag"><span class="t-en">cluster detection</span><span class="t-ko">클러스터 탐지</span></span>
+          <span class="uc-tag"><span class="t-en">bridge papers</span><span class="t-ko">브리지 논문</span></span>
+        </div>
+      </div>
+
+      <div class="usecase-card">
+        <div class="uc-icon">✅</div>
+        <h3><span class="t-en">Metadata auditing</span><span class="t-ko">메타데이터 감사</span></h3>
+        <p><span class="t-en">Run <code>enrich_wiki.js</code> monthly. Catch author name corrections, journal retractions, or DOI changes before they propagate into your manuscript.</span><span class="t-ko">월 1회 <code>enrich_wiki.js</code>를 실행하세요. 저자명 정정, 저널 게재 취소, DOI 변경이 논문에 반영되기 전에 잡아냅니다.</span></p>
+        <div class="uc-tags">
+          <span class="uc-tag"><span class="t-en">drift detection</span><span class="t-ko">drift 감지</span></span>
+          <span class="uc-tag"><span class="t-en">DOI verification</span><span class="t-ko">DOI 검증</span></span>
+          <span class="uc-tag"><span class="t-en">author validation</span><span class="t-ko">저자 검증</span></span>
+        </div>
+      </div>
+
+      <div class="usecase-card">
+        <div class="uc-icon">🌍</div>
+        <h3><span class="t-en">Multilingual research</span><span class="t-ko">다국어 연구</span></h3>
+        <p><span class="t-en">Every wiki page requires a <code>## 한국어 요약</code> section (or your target language). Bridge the gap between English-primary AI tools and your language needs.</span><span class="t-ko">모든 위키 페이지에 <code>## 한국어 요약</code> 섹션을 포함합니다. 영어 중심 AI 도구와 한국어 연구 환경 사이의 간극을 메웁니다.</span></p>
+        <div class="uc-tags">
+          <span class="uc-tag"><span class="t-en">Korean / Japanese</span><span class="t-ko">한국어·일본어</span></span>
+          <span class="uc-tag"><span class="t-en">bilingual wiki</span><span class="t-ko">이중 언어 위키</span></span>
+          <span class="uc-tag">KCI / J-STAGE</span>
+        </div>
+      </div>
+
+      <div class="usecase-card">
+        <div class="uc-icon">📊</div>
+        <h3><span class="t-en">Policy &amp; interdisciplinary work</span><span class="t-ko">정책·학제 간 연구</span></h3>
+        <p><span class="t-en">Map references across methods (NLP, causal inference, institutional theory) and topics (SDGs, climate, governance) with category cross-link matrices.</span><span class="t-ko">NLP, 인과 추론, 제도 이론 등 방법론과 SDGs, 기후, 거버넌스 등 주제에 걸친 참고문헌을 카테고리 교차 링크 매트릭스로 시각화합니다.</span></p>
+        <div class="uc-tags">
+          <span class="uc-tag"><span class="t-en">cross-disciplinary</span><span class="t-ko">학제 간 연구</span></span>
+          <span class="uc-tag"><span class="t-en">policy research</span><span class="t-ko">정책 연구</span></span>
+          <span class="uc-tag"><span class="t-en">methodology mapping</span><span class="t-ko">방법론 매핑</span></span>
+        </div>
+      </div>
+
+      <div class="usecase-card">
+        <div class="uc-icon">🤝</div>
+        <h3><span class="t-en">Shared lab knowledge base</span><span class="t-ko">연구실 공유 지식 베이스</span></h3>
+        <p><span class="t-en">Each lab member maintains their slice; the wiki's graph structure shows overlap. New members onboard by reading the wiki, not by re-reading 40 PDFs.</span><span class="t-ko">각 구성원이 담당 영역을 관리하고, 그래프 구조가 겹치는 부분을 보여줍니다. 신입 구성원은 PDF 40편을 다시 읽는 대신 위키를 읽고 온보딩합니다.</span></p>
+        <div class="uc-tags">
+          <span class="uc-tag"><span class="t-en">team knowledge</span><span class="t-ko">팀 지식 관리</span></span>
+          <span class="uc-tag"><span class="t-en">onboarding</span><span class="t-ko">온보딩</span></span>
+          <span class="uc-tag">Git sync</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── PRINCIPLES ── -->
+<section id="principles">
+  <div class="container">
+    <div class="section-label"><span class="t-en">Design principles</span><span class="t-ko">설계 원칙</span></div>
+    <h2><span class="t-en">Four rules that keep Claude honest.</span><span class="t-ko">Claude를 정직하게 유지하는 4가지 규칙.</span></h2>
+    <p class="subtitle blk-en">These rules are enforced in <code>CLAUDE.md</code> and apply to every response, including synthesis pages.</p>
+    <p class="subtitle blk-ko">이 규칙들은 <code>CLAUDE.md</code>에 명시되어 있으며, 개요 페이지 포함 모든 응답에 적용됩니다.</p>
+    <div class="rules">
+      <div class="rule">
+        <div class="rule-num">1</div>
+        <div>
+          <h3><span class="t-en">No web search</span><span class="t-ko">웹 검색 금지</span></h3>
+          <p><span class="t-en">Claude never uses WebSearch or WebFetch to fill content gaps. Every answer comes from papers you actually have. If a paper is missing, Claude says so.</span><span class="t-ko">Claude는 내용 공백을 채우기 위해 WebSearch나 WebFetch를 사용하지 않습니다. 모든 답변은 실제 보유한 논문에서 나옵니다. 논문이 없으면 없다고 말합니다.</span></p>
+        </div>
+      </div>
+      <div class="rule">
+        <div class="rule-num">2</div>
+        <div>
+          <h3><span class="t-en">Answer from the wiki first</span><span class="t-ko">위키에서 먼저 답한다</span></h3>
+          <p><span class="t-en"><code>sources/</code> and <code>wiki/</code> are the only answer sources. Claude reads them before responding — not its training data.</span><span class="t-ko"><code>sources/</code>와 <code>wiki/</code>가 유일한 답변 출처입니다. Claude는 학습 데이터가 아니라 이 파일들을 읽고 응답합니다.</span></p>
+        </div>
+      </div>
+      <div class="rule">
+        <div class="rule-num">3</div>
+        <div>
+          <h3><span class="t-en">If wiki is insufficient, re-read the PDF</span><span class="t-ko">위키가 부족하면 PDF를 다시 읽는다</span></h3>
+          <p><span class="t-en">Claude goes back to <code>papers/{stem}.pdf</code> and extracts more detail with <code>pypdf</code>. Then updates the wiki with what it found.</span><span class="t-ko"><code>papers/{stem}.pdf</code>로 돌아가 <code>pypdf</code>로 더 많은 내용을 추출합니다. 그런 다음 발견한 내용으로 위키를 업데이트합니다.</span></p>
+        </div>
+      </div>
+      <div class="rule">
+        <div class="rule-num">4</div>
+        <div>
+          <h3><span class="t-en">If no paper exists on the topic, say so</span><span class="t-ko">해당 논문이 없으면 없다고 말한다</span></h3>
+          <p><span class="t-en">"I don't have a paper on this — please give me the PDF." No improvising. No confident wrong answers.</span><span class="t-ko">"이 주제에 대한 논문이 없습니다 — PDF를 주세요." 즉흥으로 만들어내지 않습니다. 자신감 있는 오답도 없습니다.</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="container">
+    <p>
+      <strong>research-wiki</strong> ·
+      <a href="https://github.com/manturster-art/research-wiki">GitHub</a> ·
+      MIT License ·
+      Built with <a href="https://claude.ai/code">Claude Code</a>
+    </p>
+    <p style="margin-top:.5rem;font-size:.8rem;">
+      <span class="t-en">Inspired by <a href="https://karpathy.ai">Karpathy's LLM Wiki pattern</a> · verification infrastructure by</span>
+      <span class="t-ko"><a href="https://karpathy.ai">Karpathy의 LLM Wiki 패턴</a>에서 영감 · 검증 인프라</span>
+      <a href="https://openalex.org">OpenAlex</a> + <a href="https://www.crossref.org">Crossref</a>
+    </p>
+  </div>
+</footer>
+
+<script>
+function setLang(lang) {
+  document.documentElement.lang = lang;
+  document.documentElement.classList.toggle('ko', lang === 'ko');
+  document.title = lang === 'ko'
+    ? 'research-wiki — 환각 없는 학술 위키, Claude Code 스킬'
+    : 'research-wiki — Hallucination-Free Academic Wiki for Claude Code';
+  document.querySelectorAll('.lang-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.lang === lang);
+  });
+  try { localStorage.setItem('rw-lang', lang); } catch(e) {}
+}
+
+// Init from localStorage or browser language
+(function() {
+  let saved;
+  try { saved = localStorage.getItem('rw-lang'); } catch(e) {}
+  if (!saved) {
+    const nav = (navigator.language || navigator.userLanguage || '').toLowerCase();
+    saved = nav.startsWith('ko') ? 'ko' : 'en';
+  }
+  if (saved === 'ko') setLang('ko');
+})();
+
+function copy(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(() => {
+    const ko = document.documentElement.classList.contains('ko');
+    const origHtml = btn.innerHTML;
+    btn.textContent = ko ? '복사됨!' : 'Copied!';
+    setTimeout(() => { btn.innerHTML = origHtml; }, 1500);
+  });
+}
+
+// Active nav link on scroll
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.nav-links a[href^="#"]');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => { if (window.scrollY >= s.offsetTop - 80) current = s.id; });
+  navLinks.forEach(a => {
+    a.style.color = a.getAttribute('href') === '#' + current ? 'var(--accent-l)' : '';
+  });
+}, { passive: true });
+</script>
+</body>
+</html>
