@@ -1,0 +1,28 @@
+# API keys (사용자가 자기 키로 .env 만듦 — 절대 commit 금지)
+scripts/.env
+**/.env
+*.env.local
+
+# OpenAlex/Crossref 캐시 (사용자별, 큰 용량)
+**/.openalex_cache/
+**/.crossref_cache/
+
+# Node
+node_modules/
+package-lock.json
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Python
+__pycache__/
+*.pyc
