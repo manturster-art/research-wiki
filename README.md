@@ -8,7 +8,7 @@
 
 | 기능 | 일반 LLM 위키 | research-wiki |
 |---|---|---|
-| 메타데이터 검증 | LLM 자동 생성 (할루시네이션 위험) | **OpenAlex + Crossref + PDF 4-way cross-check** |
+| 메타데이터 검증 | LLM 자동 생성 (할루시네이션 위험) | **OpenAlex + Crossref + PDF 4-way cross-check (+ 한국어 자료는 KCI 5-way)** |
 | 인용 무결성 | LLM 판단 | **D16 anti-hallucination** — 자동 수정 금지, 모든 정정은 사용자 결정 |
 | 다국어 | UI만 i18n | **English primary + 한국어 요약** (RAG-friendly + 한국 연구자 친화) |
 | 프로젝트 추적 | 없음 | YAML `paper:` 필드로 학위논문/투고논문/배경 매핑 |

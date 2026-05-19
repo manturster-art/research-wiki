@@ -6,6 +6,54 @@
 
 (다음 릴리스 변경 사항이 여기에 누적됨)
 
+## [0.2.0] — 2026-05-19
+
+**KCI Open API 통합** — 한국어 자료(KCI 등재지) 검증 가능. wiki-verifier가 4-way → 5-way (한국어 한정)로 격상.
+
+### Added — KCI helper
+- **`scripts/kci_helper.js`** — KCI Open API 래퍼 (XML/UTF-8, 5 endpoints)
+  - `verifyByTitle(title, year?)` — articleSearch
+  - `verifyByDOI(doi)` — articleSearch with doi param
+  - `verifyByControlNumber(id)` — articleDetail (ART...)
+  - `searchByAuthor(name, year?)` — author 검색 (한글명 지원)
+  - `diagnose()` — 환경 점검 + IP whitelist 경고
+- 응답 XML 정규식 파서 (npm 의존성 0), CDATA 처리
+- 30일 TTL 캐시 (`.kci_cache/`)
+- 핵심 추출 필드: kci_article_id, title_ko, title_en, authors[name/name_eng/institution/orcid], journal, volume, issue, doi, kci/wos cited_by, keywords, abstract_ko
+
+### Changed — wiki-verifier 5-way 매트릭스
+- `agents/wiki-verifier.md`
+  - description: 4-way → "4-way (영어) / 5-way (한국어)"
+  - 검증 매트릭스 표에 KCI 행 추가
+  - "언제 KCI를 호출" 가이드 (한글 카테고리·저자명·DOI prefix 패턴)
+  - 판정 규칙: 한국어 자료 KCI 단독 매치 + wiki 일치 = PASS (한국 자료 정상 패턴)
+  - KCI 호출 실패 시 영어 4-way 격하 진행
+  - 캐시 TTL 메모에 `.kci_cache/` 추가
+
+### Changed — skill.md
+- D16 원칙 한 줄: "OpenAlex/Crossref 1차 검증" → "+ 한국어 자료는 KCI 5-way"
+- Scenario C 검증 명령표에 KCI/Crossref crosscheck/graph_insights 추가
+- agents/ 안내: 4-way → 4-way (영어) / 5-way (한국어) + dual-write 명시
+
+### Changed — scripts/.env.example
+- `KCI_API_KEY=` placeholder 추가 (IP whitelist 안내 포함)
+
+### Added — 자동 3-DB cross-check (한 명령으로 KCI × OpenAlex × Crossref 동시 호출)
+- `node _workspace/kci_helper.js crosscheck "<제목>" [YYYY]`
+- 출력 구조:
+  - `kci` — KCI 검색 결과 (best + candidates + 한국어 abstract)
+  - `openalex` — OpenAlex 결과
+  - `crossref` — Crossref 결과
+  - `comparison.{kci_exists, openalex_exists, crossref_exists, all_match, discrepancies[]}`
+  - `discrepancies[]`는 field별로 (title / first_author / year) 차이 자동 산출
+- 5-way 검증 시 사용자/에이전트가 OA·Crossref·KCI 응답 셋을 수동 비교할 필요 없음
+
+### Known limitations
+- KCI는 **IP whitelist 방식** — 사용자 로컬 PC에서만 동작. 원격 환경(CI·remote IDE)에서는 403/timeout → 영어 4-way로 격하
+
+### First adopter validation
+SDGs 박사연구 위키에서 한국어 자료 9편 일괄 검증 통과 (PASS 5 / KCI 미수록 4 — grey literature 정상). 정정 필요 항목 0건.
+
 ## [0.1.0] — 2026-05-18
 
 첫 공개 릴리스. SDGs 박사연구 위키(46 wiki pages, 41 PDFs)에서 검증된 인프라를 다른 사람도 쓸 수 있게 패키징.
@@ -60,5 +108,6 @@
 - KCI(한국 학술지)는 직접 검증 미지원 — 사용자 IP whitelist 필요한 KCI API는 로컬 전용
 - 스킬 갱신 시 기존 위키의 `_workspace/` 동기화는 수동 복사 (`Copy-Item ... -Force`)
 
-[Unreleased]: https://github.com/manturster-art/research-wiki/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/manturster-art/research-wiki/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/manturster-art/research-wiki/releases/tag/v0.2.0
 [0.1.0]: https://github.com/manturster-art/research-wiki/releases/tag/v0.1.0
