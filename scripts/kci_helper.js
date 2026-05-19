@@ -44,6 +44,19 @@ const BASE = 'https://open.kci.go.kr/po/openapi/openApiSearch.kci';
 const CACHE_DIR = path.resolve(__dirname, '.kci_cache');
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30일
 
+// ─── OFFLINE 모드 (옵션 A: 캐시-공유 패턴) ───
+// KCI API는 IP whitelist 방식 — 등록한 로컬 PC에서만 동작.
+// 클라우드 환경(claude.ai/code remote 등)에서는 등록 안 된 IP라 API 호출 자체가 안 됨.
+// 해법: 사용자 PC에서 미리 `.kci_cache/`를 채워 git commit → 클라우드는 캐시만 사용.
+//
+// 모드 자동 판정:
+//   - KCI_OFFLINE=true 강제 (명시적)
+//   - 또는 KCI_API_KEY 미설정 (자동 fallback)
+// OFFLINE 모드에서는:
+//   - 캐시 hit → 정상 응답
+//   - 캐시 miss → 명확한 에러 메시지로 안내 ("Run on local PC and commit cache")
+const OFFLINE = process.env.KCI_OFFLINE === 'true' || !KCI_API_KEY;
+
 if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
 
 // ─── URL builder ───
@@ -95,6 +108,26 @@ function cacheKey(url) {
 async function cachedGet(url) {
   const key = cacheKey(url);
   const f = path.join(CACHE_DIR, `${key}.xml`);
+
+  // OFFLINE 모드: 캐시 hit만 응답, miss는 에러
+  if (OFFLINE) {
+    if (fs.existsSync(f)) {
+      // TTL 무시 (캐시-공유 패턴에서는 사용자 PC가 commit 한 결과를 신뢰)
+      return fs.readFileSync(f, 'utf8');
+    }
+    const reason = !KCI_API_KEY
+      ? 'KCI_API_KEY 미설정 (OFFLINE 모드 자동)'
+      : 'KCI_OFFLINE=true 강제';
+    const err = new Error(
+      `KCI cache miss in OFFLINE mode (${reason}). ` +
+      `이 항목은 사용자의 등록된 로컬 PC에서 검증 후 .kci_cache/를 git commit 해주세요. ` +
+      `URL: ${url.replace(/key=[^&]+/, 'key=***')}`
+    );
+    err.code = 'KCI_OFFLINE_MISS';
+    throw err;
+  }
+
+  // 온라인 모드: 캐시 hit + TTL 검사 → API 호출 → 캐시 저장
   if (fs.existsSync(f)) {
     const stat = fs.statSync(f);
     if (Date.now() - stat.mtimeMs < CACHE_TTL_MS) {
@@ -340,15 +373,20 @@ async function searchByAuthor(author, year = null) {
 function diagnose() {
   const out = {
     has_api_key: !!KCI_API_KEY,
+    mode: OFFLINE ? 'OFFLINE (cache-only)' : 'ONLINE',
     base: BASE,
     cache_dir: CACHE_DIR,
     cache_files: fs.existsSync(CACHE_DIR) ? fs.readdirSync(CACHE_DIR).length : 0,
-    cache_ttl_days: 30,
+    cache_ttl_days: OFFLINE ? '∞ (TTL 무시 — 캐시-공유 패턴)' : 30,
   };
-  if (!KCI_API_KEY) {
-    out.warning = '❗ KCI_API_KEY 미설정 — _workspace/.env에 KCI_API_KEY=... 추가 필요.';
+  if (OFFLINE) {
+    out.note = !KCI_API_KEY
+      ? 'ℹ️ KCI_API_KEY 미설정 → OFFLINE 모드 자동. 캐시 hit만 응답, miss는 에러 (KCI_OFFLINE_MISS).'
+      : 'ℹ️ KCI_OFFLINE=true 강제 → 캐시 hit만 응답.';
+    out.cache_share_pattern = '사용자 PC에서 정기 실행(API 호출 + 캐시 채움) → git commit → 클라우드는 .kci_cache/만 읽음.';
+  } else {
+    out.note = '⚠️ KCI는 IP whitelist 방식 — 등록한 로컬 PC에서만 API 호출 성공. 다른 IP에서는 403 가능.';
   }
-  out.note = '⚠️ KCI는 IP whitelist 방식 — 등록한 로컬 PC에서만 동작. claude.ai/code 원격 환경에서는 403/타임아웃 가능.';
   return out;
 }
 

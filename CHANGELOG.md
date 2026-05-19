@@ -4,7 +4,32 @@
 
 ## [Unreleased]
 
-(다음 릴리스 변경 사항이 여기에 누적됨)
+### Added — KCI 캐시-공유 패턴 (옵션 A, 클라우드 환경 우회)
+
+KCI Open API의 **IP whitelist 제약**(등록한 로컬 PC에서만 동작)을 클라우드 환경에서도 우회 가능한 패턴.
+
+- `scripts/kci_helper.js`에 **OFFLINE 모드** 추가
+  - `KCI_API_KEY` 미설정 → 자동 OFFLINE (캐시 hit만 응답)
+  - `KCI_OFFLINE=true` 강제 가능
+  - 캐시 miss는 `KCI_OFFLINE_MISS` 에러 + 명확한 안내 메시지 (API 키 마스킹)
+  - `diagnose()`에 mode 표시 ("ONLINE" / "OFFLINE (cache-only)")
+- `references/kci-cache-share-pattern.md` — 운영 가이드 (Task Scheduler 스크립트 포함)
+
+**동작 패턴**:
+```
+사용자 PC (등록 IP)            GitHub repo            클라우드 환경
+─────────────────              ──────────              ──────────────
+주1회 cron:                                             KCI_API_KEY 없음 → OFFLINE 자동
+  KCI API 호출 + 캐시  ──push──►  .kci_cache/  ──pull──►  캐시 hit만 응답
+                                  (gitignored 제외,                   ↓
+                                   commit 대상)         캐시 miss는 명확한 에러
+```
+
+**적용 방법** (위키 부트스트랩 시):
+- `.gitignore`에서 `_workspace/.kci_cache/` 항목 **주석 처리** (commit 대상으로 전환)
+- `_workspace/.env`의 `KCI_API_KEY`는 그대로 gitignore 유지 (절대 commit 금지)
+
+
 
 ## [0.2.0] — 2026-05-19
 
