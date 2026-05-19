@@ -9,7 +9,7 @@ Karpathy의 [LLM Wiki 패턴](https://gist.github.com/karpathy/1dd0294ef9567971c
 
 ## 핵심 원칙 — D16 (anti-hallucination)
 
-모든 메타데이터·인용은 **PDF 직접 추출 + OpenAlex/Crossref 1차 검증**을 거친다. Claude의 사전 지식으로 메타데이터를 생성하지 않는다. 자세한 규칙은 `references/d16-anti-hallucination.md`.
+모든 메타데이터·인용은 **PDF 직접 추출 + OpenAlex/Crossref 1차 검증 (+ 한국어 자료는 KCI 5-way)**을 거친다. Claude의 사전 지식으로 메타데이터를 생성하지 않는다. 자세한 규칙은 `references/d16-anti-hallucination.md`.
 
 ## 3-tier 구조
 
@@ -87,9 +87,14 @@ wiki/{category}/{stem}.md  ← 핵심 정리 + 한국어 요약 + Related Papers
 
 | 명령 | 용도 |
 |---|---|
-| `node _workspace/enrich_wiki.js` | 전체 위키 OpenAlex 일괄 검증, drift·OA URL 보고 |
+| `node _workspace/enrich_wiki.js` | 전체 위키 OpenAlex 일괄 검증, drift·OA URL 보고 (SHA256 캐시) |
 | `node _workspace/audit_titles.js` | 제목을 OpenAlex 정본과 strict 대조 (DOI 기반만 신뢰) |
-| `wiki-verifier` 에이전트 호출 | 4-way 검증 (wiki YAML ↔ OpenAlex ↔ Crossref ↔ PDF 1쪽). 결과는 `_workspace/verification_log.md`에 append-only |
+| `node _workspace/crossref_helper.js crosscheck <DOI>` | OpenAlex × Crossref 자동 cross-check |
+| `node _workspace/kci_helper.js doi <DOI>` | **한국어 자료** KCI 정본 확인 (로컬 PC 한정 — IP whitelist) |
+| `node _workspace/kci_helper.js title "<제목>" [YYYY]` | KCI 제목 검색 (한글/영문) |
+| `node _workspace/kci_helper.js crosscheck "<제목>" [YYYY]` | **자동 3-DB cross-check** — KCI + OpenAlex + Crossref 동시 호출 + comparison.discrepancies[] 자동 산출 |
+| `node _workspace/graph_insights.js` | wikilink 그래프 사각지대 (orphan/bridge/component) |
+| `wiki-verifier` 에이전트 호출 | **4-way (영어) / 5-way (한국어 = KCI 추가)** 검증. dual-write: `verification_log.md` (불변 이력) + `review_queue.md` (action 큐) |
 
 ★ **wiki 파일 자동 수정 금지** — 모든 정정은 사용자가 로그 검토 후 결정. 자세한 정책: `references/d16-anti-hallucination.md`.
 
@@ -163,4 +168,4 @@ wiki/{category}/{stem}.md  ← 핵심 정리 + 한국어 요약 + Related Papers
 
 ## agents/ 안내
 
-`agents/wiki-verifier.md`는 신규 위키 부트스트랩 시 target `.claude/agents/`로 복사된다. 4-way 검증(wiki YAML ↔ OpenAlex ↔ Crossref ↔ PDF) 에이전트.
+`agents/wiki-verifier.md`는 신규 위키 부트스트랩 시 target `.claude/agents/`로 복사된다. **4-way (영어) / 5-way (한국어)** 검증(wiki YAML ↔ OpenAlex ↔ Crossref ↔ KCI ↔ PDF) 에이전트. dual-write 정책 (log + queue).
